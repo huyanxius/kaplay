@@ -113,6 +113,8 @@ export interface AudioPlay {
     detune: number;
     /**
      * Volume of the sound. 1.0 means full volume, 0.5 means half volume.
+     * For sounds loaded with `loadSound()`, changes while playing are smoothed
+     * over a few milliseconds to avoid clicks. Reading returns the target volume.
      */
     volume: number;
     /**
@@ -189,6 +191,7 @@ export function play(
     panNode.connect(gainNode);
     gainNode.connect(opt.connectTo ?? _k.audio.masterNode);
     gainNode.gain.value = opt.volume ?? 1;
+    let volume = gainNode.gain.value;
 
     const start = (data: SoundData) => {
         if (opt.reverse) {
@@ -318,11 +321,23 @@ export function play(
         },
 
         set volume(val: number) {
-            gainNode.gain.value = Math.max(val, 0);
+            const target = Math.max(val, 0);
+            if (started) {
+                // Smooth at the audio sample rate, including when a tween
+                // retargets the gain before the previous change has finished.
+                gainNode.gain.setTargetAtTime(target, ctx.currentTime, 0.005);
+                volume = Math.fround(target);
+            }
+            else {
+                // A paused or not-yet-loaded sound should start at its target.
+                gainNode.gain.cancelScheduledValues(0);
+                gainNode.gain.value = target;
+                volume = gainNode.gain.value;
+            }
         },
 
         get volume() {
-            return gainNode.gain.value;
+            return volume;
         },
 
         set pan(pan: number) {

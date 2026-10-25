@@ -97,6 +97,7 @@ So your change should look like:
 
 ### Fixed
 
+- Fixed frame-rate stepping when tweening the volume of sounds loaded with `loadSound()` (#1035) - @huyanxius
 - Fixed `scale`, `skew`, and `rotate` component transforms not being applied on the initial `GameObjRaw.use()` call (e.g. `obj.use(scale(2))`) - @mflerackers
 - Fixed `TimerController.timeLeft` returning elapsed time instead of remaining time (#1082) - @nojaf
 - Fixed mouse coordinates not being calculated properly when canvas is resized by CSS and wasn't rendered at its natural size (#1096) - @Stanko
