@@ -188,9 +188,23 @@ export interface BodyCompOpt {
     mass?: number;
 }
 
+// Measure the platform in the rider's parent space, which is also the space
+// moveBy() uses. The common case avoids any matrix conversions.
+function platformPosRelativeTo(
+    platform: GameObj<PosComp>,
+    rider: GameObj<PosComp>,
+): Vec2 {
+    if (platform.parent === rider.parent) return platform.pos.clone();
+    const p = platform.worldPos.clone();
+    return rider.parent
+        ? rider.parent.transform.inverse.transformPointV(p, p)
+        : p;
+}
+
 export function body(opt: BodyCompOpt = {}): BodyComp {
     let curPlatform: GameObj<PosComp | AreaComp | BodyComp> | null = null;
     let lastPlatformPos: null | Vec2 = null;
+    let lastPlatformSpace: GameObj | null = null;
     let willFall = false;
     const acc = vec2(0);
     let prevPhysicsPos: Vec2 | null = null;
@@ -301,7 +315,11 @@ export function body(opt: BodyCompOpt = {}): BodyComp {
                             >;
                             if (pastPlatform != curPlatform) {
                                 // If we are on a new platform, update the sticky position
-                                lastPlatformPos = col.target.pos;
+                                lastPlatformPos = platformPosRelativeTo(
+                                    curPlatform,
+                                    this,
+                                );
+                                lastPlatformSpace = this.parent;
                             }
                             if (willFall) {
                                 // We would have fallen, but didn't.
@@ -364,18 +382,24 @@ export function body(opt: BodyCompOpt = {}): BodyComp {
                     && exists(curPlatform)
                     && curPlatform.has("body")
                 ) {
+                    const platformPos = platformPosRelativeTo(
+                        curPlatform,
+                        this,
+                    );
                     // This needs to happen in onUpdate. Otherwise the player position will jitter.
                     if (
                         lastPlatformPos
-                        && !curPlatform.pos.eq(lastPlatformPos)
+                        && lastPlatformSpace === this.parent
+                        && !platformPos.eq(lastPlatformPos)
                         && opt.stickToPlatform !== false
                     ) {
                         // Stick to the platform
                         this.moveBy(
-                            curPlatform.pos.sub(lastPlatformPos),
+                            platformPos.sub(lastPlatformPos),
                         );
                     }
-                    lastPlatformPos = curPlatform.pos.clone();
+                    lastPlatformPos = platformPos;
+                    lastPlatformSpace = this.parent;
                 }
             }
 
